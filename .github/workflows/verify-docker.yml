@@ -1,0 +1,60 @@
+name: VerifyDocker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  buildDocker:
+    outputs:
+      matrix: ${{ steps.set-docker-matrix.outputs.matrix }}
+    strategy:
+      matrix:
+        image: [ one, two ]
+    runs-on: ubuntu-latest
+    steps:
+      - id: set-docker-matrix
+        run: |
+          echo "*** matrix=${{ toJSON(job.buildDocker.matrix) }}"
+          echo matrix=${{ toJSON(job.buildDocker.matrix) }} >> $GITHUB_OUTPUT
+      - uses: actions/checkout@v4
+      - run: |
+          echo "Building docker image... ${{ matrix.image }}"
+          cd src/${{ matrix.image }}
+          docker build -t ${{ matrix.image }} .
+      - run: |
+          echo "Saving docker image as tar file... ${{ matrix.image }}"
+          docker save -o ${{ matrix.image }}.tar ${{ matrix.image }}
+      - uses: actions/cache/save@v4
+        with:
+          path: ${{ matrix.image }}.tar
+          key: verify-docker-images-${{ matrix.image }}-${{ github.sha }}
+
+  verifyDocker:
+    needs: [ buildDocker ]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache/restore@v4
+        with:
+          path: one.tar
+          key: verify-docker-images-one-${{ github.sha }}
+      - run: docker load < one.tar
+      - uses: actions/cache/restore@v4
+        with:
+          path: two.tar
+          key: verify-docker-images-two-${{ github.sha }}
+      - run: docker load < two.tar
+      - uses: actions/checkout@v4
+      - run: |
+          echo "Verify docker images"
+          cd src
+          docker compose up
+
+  pushDocker:
+    needs: [ buildDocker, verifyDocker ]
+    strategy:
+      matrix: ${{ fromJSON(needs.buildDocker.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: push
+        run: |
+          echo "Push docker..."

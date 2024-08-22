@@ -1,0 +1,7 @@
+version: "3.8"
+
+services:
+  one:
+    image: "one"
+  two:
+    image: "two"
