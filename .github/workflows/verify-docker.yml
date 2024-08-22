@@ -40,11 +40,13 @@ jobs:
         with:
           path: one.tar
           key: verify-docker-images-one-${{ github.sha }}
+          fail-on-cache-miss: true
       - run: docker load < one.tar
       - uses: actions/cache/restore@v4
         with:
           path: two.tar
           key: verify-docker-images-two-${{ github.sha }}
+          fail-on-cache-miss: true
       - run: docker load < two.tar
       - uses: actions/checkout@v4
       - run: |
@@ -62,6 +64,7 @@ jobs:
         with:
           path: ${{ matrix.image }}.tar
           key: verify-docker-images-${{ matrix.image }}-${{ github.sha }}
+          fail-on-cache-miss: true
       - run: docker load < ${{ matrix.image }}.tar
       - run: |
           echo "Pushing docker image... ${{ matrix.image }}"
