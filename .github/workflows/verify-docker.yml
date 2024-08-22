@@ -4,18 +4,21 @@ on:
   workflow_dispatch:
 
 jobs:
-  buildDocker:
+  prep:
     outputs:
       matrix: ${{ steps.set-docker-matrix.outputs.matrix }}
-    strategy:
-      matrix:
-        image: [ one, two ]
     runs-on: ubuntu-latest
     steps:
       - id: set-docker-matrix
         run: |
-          echo "*** matrix=${{ toJSON(job.buildDocker.matrix) }}"
-          echo matrix=${{ toJSON(job.buildDocker.matrix) }} >> $GITHUB_OUTPUT
+          echo matrix="{ image: ['one', 'two'] }" >> $GITHUB_OUTPUT
+
+  buildDocker:
+    needs: [ prep ]
+    strategy:
+      matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    steps:
       - uses: actions/checkout@v4
       - run: |
           echo "Building docker image... ${{ matrix.image }}"
@@ -50,11 +53,15 @@ jobs:
           docker compose up
 
   pushDocker:
-    needs: [ buildDocker, verifyDocker ]
+    needs: [ prep, buildDocker, verifyDocker ]
     strategy:
-      matrix: ${{ fromJSON(needs.buildDocker.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
     runs-on: ubuntu-latest
     steps:
-      - name: push
-        run: |
-          echo "Push docker..."
+      - uses: actions/cache/restore@v4
+        with:
+          path: ${{ matrix.image }}.tar
+          key: verify-docker-images-${{ matrix.image }}-${{ github.sha }}
+      - run: docker load < ${{ matrix.image }}.tar
+      - run: |
+          echo "Pushing docker image... ${{ matrix.image }}"
