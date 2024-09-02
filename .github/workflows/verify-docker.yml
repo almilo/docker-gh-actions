@@ -37,31 +37,27 @@ jobs:
           path: /tmp/${{ matrix.image }}.tar
 
   verifyDocker:
-    needs: [ buildDocker ]
+    needs: [ prep, buildDocker ]
     runs-on: ubuntu-latest
     steps:
-      - name: Download image 1
-        uses: actions/download-artifact@v4
-        with:
-          name: one
-          path: /tmp
-
-      - name: Download image 2
-        uses: actions/download-artifact@v4
-        with:
-          name: two
-          path: /tmp
-
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run images
+      - name: Download images and load them into Docker
         run: |
-          docker load --input /tmp/one.tar
-          docker load --input /tmp/two.tar
-          docker image ls
-          cd src
-          docker compose up
+          imageNames=$(echo ${{ toJSON(needs.prep.outputs.matrix) }} | jq -r '.image | join(" ")')
+          for image in $imageNames; do
+            echo "Preparing Docker image: $image"
+            gh run download ${{ github.run_id }} --dir /tmp --name $image
+            docker load --input /tmp/$image.tar
+          done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Invoke hook
+        run: |
+          chmod +x ./src/verify-docker.sh
+          ./src/verify-docker.sh
 
   pushDocker:
     needs: [ prep, verifyDocker ]
