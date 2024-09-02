@@ -6,17 +6,17 @@ on:
 jobs:
   prep:
     outputs:
-      matrix: ${{ steps.set-docker-matrix.outputs.matrix }}
+      docker-images: ${{ steps.set-docker-images.outputs.docker-images }}
     runs-on: ubuntu-latest
     steps:
-      - id: set-docker-matrix
+      - id: set-docker-images
         run: |
-          echo matrix='{ "image": ["one", "two"] }' >> $GITHUB_OUTPUT
+          echo docker-images='{ "image": ["one", "two"] }' >> $GITHUB_OUTPUT
 
   buildDocker:
     needs: [ prep ]
     strategy:
-      matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prep.outputs.docker-images) }}
     runs-on: ubuntu-latest
     steps:
       - name: Set up Docker Buildx
@@ -45,7 +45,7 @@ jobs:
 
       - name: Download images and load them into Docker
         run: |
-          imageNames=$(echo ${{ toJSON(needs.prep.outputs.matrix) }} | jq -r '.image | join(" ")')
+          imageNames=$(echo ${{ toJSON(needs.prep.outputs.docker-images) }} | jq -r '.image | join(" ")')
           for image in $imageNames; do
             echo "Preparing Docker image: $image"
             gh run download ${{ github.run_id }} --dir /tmp --name $image
@@ -62,7 +62,7 @@ jobs:
   pushDocker:
     needs: [ prep, verifyDocker ]
     strategy:
-      matrix: ${{ fromJSON(needs.prep.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.prep.outputs.docker-images) }}
     runs-on: ubuntu-latest
     steps:
       - name: Download image
