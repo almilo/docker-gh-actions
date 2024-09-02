@@ -11,7 +11,7 @@ jobs:
     steps:
       - id: set-docker-matrix
         run: |
-          echo matrix="{ image: ['one', 'two'] }" >> $GITHUB_OUTPUT
+          echo matrix='{ "image": ["one", "two"] }' >> $GITHUB_OUTPUT
 
   buildDocker:
     needs: [ prep ]
