@@ -56,11 +56,24 @@ jobs:
 
       - name: Invoke hook
         run: |
-          chmod +x ./src/verify-docker.sh
-          ./src/verify-docker.sh
+          # chmod +x ./src/verify-docker.sh
+          # ./src/verify-docker.sh
+          
+          # Simulate failing the hook
+          exit 1
+
+  debug:
+    needs: [ verifyDocker ]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug verify docker result
+        run: |
+          echo ${{needs.verifyDocker.result}}
 
   pushDocker:
     needs: [ prep, verifyDocker ]
+    if: always() && needs.verifyDocker.result == 'failure'
     strategy:
       matrix: ${{ fromJSON(needs.prep.outputs.docker-images) }}
     runs-on: ubuntu-latest
